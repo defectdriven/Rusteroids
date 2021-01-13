@@ -1,13 +1,16 @@
-use tcod::colors::*;
-use tcod::console::*;
+extern crate glutin_window;
+extern crate graphics;
+extern crate opengl_graphics;
+extern crate piston;
 
-const SCREEN_WIDTH: i32 = 75;
-const SCREEN_HEIGHT: i32 = 75;
-const LIMIT_FPS: i32 = 20;
+use glutin_window::GlutinWindow as Window;
+use opengl_graphics::{GlGraphics, OpenGL};
+use piston::event_loop::{EventSettings, Events};
+use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
+use piston::window::WindowSettings;
 
-struct Tcod {
-    root: Root,
-}
+const SCREEN_WIDTH: u32 = 475;
+const SCREEN_HEIGHT: u32 = 475;
 
 struct Ship {
     x: i32,
@@ -30,55 +33,53 @@ impl Ship {
     }
 }
 
+pub struct App {
+    gl: GlGraphics,
+}
+
+impl App {
+    fn render(&mut self, args: &RenderArgs) {
+        use graphics::*;
+
+        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
+        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+        const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+
+        let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
+
+        self.gl.draw(args.viewport(), |c, gl| {
+            // Clear the screen.
+            clear(BLACK, gl);
+            line_from_to(RED, 3.0, [5.0, 5.0], [475.0, 475.0], c.transform, gl);
+            line_from_to(WHITE, 3.0, [475.0, 5.0], [5.0, 475.0], c.transform, gl);
+        });
+    }
+
+    fn update(&mut self, args: &UpdateArgs) {
+    }
+}
+
 fn main() {
-    let root = Root::initializer()
-        .font("arial10x10.png", FontLayout::Tcod)
-        .font_type(FontType::Greyscale)
-        .size(SCREEN_WIDTH, SCREEN_HEIGHT)
-        .title("Rusteroids")
-        .init();
-    let mut player_ship = Ship { x: 0, y: 0, vel_x: 0, vel_y: 0, angle: 0, radius: 5 };
-    let mut tcod = Tcod { root };
-    tcod::system::set_fps(LIMIT_FPS);
-    while !tcod.root.window_closed() {
-        tcod.root.set_default_foreground(WHITE);
-        tcod.root.clear();
-        tcod.root.put_char(1, 1, '@', BackgroundFlag::None);
-        tcod.root.horizontal_line(20, 20, 35, BackgroundFlag::None);
-        tcod.root.flush();
-        // handle keys and exit game if needed
-        let exit = handle_keys(&mut tcod, &mut player_ship);
-        if exit {
-            break;
+    let opengl = OpenGL::V3_2;
+    // Create an Glutin window.
+    let mut window: Window = WindowSettings::new("rusteroids", [SCREEN_WIDTH, SCREEN_HEIGHT])
+        .graphics_api(opengl)
+        .exit_on_esc(true)
+        .build()
+        .unwrap();
+    let mut app = App {
+        gl: GlGraphics::new(opengl)
+    };
+
+    let mut events = Events::new(EventSettings::new());
+
+    while let Some(e) = events.next(&mut window) {
+        if let Some(args) = e.render_args() {
+            app.render(&args);
+        }
+
+        if let Some(args) = e.update_args() {
+            app.update(&args);
         }
     }
-}
-
-fn render() {
-
-}
-
-fn handle_keys(tcod: &mut Tcod, player_ship: &mut Ship) -> bool {
-    use tcod::input::Key;
-    use tcod::input::KeyCode::*;
-
-    let key = tcod.root.wait_for_keypress(true);
-    match key {
-        Key {
-            code: Enter,
-            alt: true,
-            ..
-        } => {
-            // Alt+Enter: toggle fullscreen
-            let fullscreen = tcod.root.is_fullscreen();
-            tcod.root.set_fullscreen(!fullscreen);
-        }
-        Key { code: Escape, .. } => return true, // exit game
-
-        // movement keys
-        Key { code: Spacebar, .. } => player_ship.fire_bullet(),
-        _ => {}
-    }
-
-    false
 }

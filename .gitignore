@@ -11,3 +11,5 @@ Cargo.lock
 
 # ignore webstorm files
 .idea
+.un~
+.toml~
